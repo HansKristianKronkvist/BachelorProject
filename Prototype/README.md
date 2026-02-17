@@ -4,8 +4,6 @@ Repoen inneholder nå en tidlig prototype som vi har tenkt å bruke til bachelor
 
 Prototypen er ikke et ferdig produkt, men en løsning som viser tankgegangen vår og retningen vi tenker å løse prosjektet på. En såkalt Proof of concept.
 
-Innholdet i prototypen: 
-
 
 Hvordan kjører man den?
 lager .env med tomme keys
