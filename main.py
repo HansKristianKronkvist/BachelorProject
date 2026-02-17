@@ -75,7 +75,7 @@ def save_to_db(con, cve_id: str, commit_url: str, owner: str, repo: str, sha: st
     con.commit()
 
 def main():
-    cve_id = "CVE-2024-32002"  # eksempel som ofte har direkte commit-lenke
+    cve_id = "CVE-2024-32002"  
 
     print("[1] Lager/åpner DB:", DB_PATH)
     con = init_db()
@@ -90,7 +90,7 @@ def main():
 
     print("    Fant:", commit_url)
 
-    print("[4] Henter diff fra GitHub...")
+    print("[4] Henter diff fra GitHub")
     owner, repo, sha, diff_text = fetch_commit_diff(commit_url)
     print("    Diff-lengde:", len(diff_text))
 
@@ -98,7 +98,7 @@ def main():
     save_to_db(con, cve_id, commit_url, owner, repo, sha, diff_text)
 
     con.close()
-    print("✅ Ferdig. Sjekk DB-fila:", DB_PATH)
+    print("Ferdig. Sjekk DB-fila:", DB_PATH)
 
 if __name__ == "__main__":
     main()
