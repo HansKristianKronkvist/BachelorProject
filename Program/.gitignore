@@ -1,0 +1,18 @@
+# Environment variables — never commit these
+.env
+.env.local
+.env.*
+
+# Scanner cache (NVD responses + SQLite database)
+.scanner_cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Scan output
+scan_results.json
