@@ -4,4 +4,4 @@ This bachelor project is based on the task given to us by SmartSecLab to create 
 
 
 ## About the project 
-The solution we have built is a scanner that will read your files and look for vulnerability before you commit them to github. You can find the program under the **Main folder**. The installation guide for the program is also in the README file in the Main folder with more information regarding how you use it. 
+The solution we have built is a scanner that will read your files and look for vulnerability before you commit them to github. You can find the program under the **Program folder**. The installation guide for the program is also in the README file in the Program folder with more information regarding how you use it. 
