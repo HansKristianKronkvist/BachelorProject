@@ -1,0 +1,74 @@
+# scanner_config.yaml — Pre-Commit Security Scanner Configuration
+
+# Path to the vulnerability rules file
+rules_path: "rules/rules.yaml"
+
+# Minimum severity level to BLOCK a commit.
+# Options: INFO | LOW | MEDIUM | HIGH | CRITICAL
+# Findings below this threshold are shown but don't block.
+severity_threshold: "HIGH"
+
+# Enable colored terminal output
+color_output: true
+
+# Optional: write findings to a JSON file (useful for CI/CD pipelines)
+# json_output_path: "scan_results.json"
+
+# ─── Dependency Scan Settings ─────────────────────────────────────────────────
+# Scans requirements.txt, Pipfile, pyproject.toml, package.json for known CVEs
+dep_scan:
+  enabled: true
+
+  # Minimum CVSS score to report a vulnerable dependency (0.0 - 10.0)
+  # 5.0 catches MEDIUM+ CVEs. Set to 7.0 for HIGH+ only.
+  min_cvss_score: 5.0
+
+  # Number of CVEs to show per vulnerable package
+  max_cves_per_package: 3
+
+  # If true, skip packages without a pinned version (e.g. requests>=2.0)
+  # Pinned versions give more accurate CVE matches
+  skip_unpinned: false
+
+# ─── NVD API Settings ─────────────────────────────────────────────────────────
+nvd:
+  enabled: true
+
+  # Get a free API key at: https://nvd.nist.gov/developers/request-an-api-key
+  # Without a key: 5 req/30s  |  With a key: 50 req/30s
+  api_key: null  # Replace with your key or set env var NVD_API_KEY
+
+  # Number of CVEs to display per finding
+  max_cves_per_finding: 3
+
+  # Only show CVEs at or above this CVSS score (0.0 - 10.0)
+  min_cvss_score: 7.0
+
+  # How long to cache NVD responses (hours)
+  cache_ttl_hours: 24
+
+  # If true, NVD API failures will block commits. Recommended: false.
+  fail_on_nvd_error: false
+
+# ─── Ignore Rules ─────────────────────────────────────────────────────────────
+ignore:
+  # Skip scanning these files entirely (supports glob patterns)
+  files:
+    - "tests/*"
+    - "test_*.py"
+    - "*_test.py"
+    - "conftest.py"
+
+  # Disable specific rule IDs globally
+  rules: []
+  # Example: rules: [WEAK_RANDOM, PRINT_SENSITIVE_DATA]
+
+  # Skip paths matching these prefixes
+  paths:
+    - ".git/"
+    - "node_modules/"
+    - "__pycache__/"
+    - ".venv/"
+    - "venv/"
+    - "dist/"
+    - "build/"

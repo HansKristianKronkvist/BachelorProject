@@ -1,0 +1,565 @@
+rules:
+
+  # ─── Dangerous Functions ──────────────────────────────────────────────────
+
+  - id: USE_OF_EVAL
+    name: "Use of eval()"
+    severity: HIGH
+    languages: [python]
+    ast_check: call
+    ast_targets: [eval]
+    pattern: "eval\\s*\\("
+    description: "eval() executes arbitrary strings as code. If user input reaches it, this is a critical RCE vector."
+    remediation: "Replace eval() with ast.literal_eval() for safe literal parsing, or redesign to avoid dynamic execution."
+    cwe: "CWE-95"
+    cwe_url: "https://cwe.mitre.org/data/definitions/95.html"
+    enabled: true
+
+  - id: USE_OF_EXEC
+    name: "Use of exec()"
+    severity: HIGH
+    languages: [python]
+    ast_check: call
+    ast_targets: [exec]
+    pattern: "exec\\s*\\("
+    description: "exec() can execute arbitrary Python code at runtime."
+    remediation: "Avoid exec() entirely. If dynamic behavior is needed, use a plugin system or configuration-driven approach."
+    cwe: "CWE-95"
+    cwe_url: "https://cwe.mitre.org/data/definitions/95.html"
+    enabled: true
+
+  - id: USE_OF_PICKLE
+    name: "Insecure Deserialization (pickle)"
+    severity: HIGH
+    languages: [python]
+    ast_check: import
+    ast_targets: [pickle, cPickle]
+    pattern: "import\\s+(pickle|cPickle)"
+    description: "Deserializing untrusted pickle data can execute arbitrary code."
+    remediation: "Use JSON, MessagePack, or other safe serialization formats. Never unpickle data from untrusted sources."
+    cwe: "CWE-502"
+    cwe_url: "https://cwe.mitre.org/data/definitions/502.html"
+    enabled: true
+
+  - id: USE_OF_MARSHAL
+    name: "Insecure Deserialization (marshal)"
+    severity: MEDIUM
+    languages: [python]
+    pattern: "import\\s+marshal"
+    description: "marshal is not secure against erroneous or maliciously constructed data."
+    remediation: "Use JSON or another safe serialization format."
+    cwe: "CWE-502"
+    cwe_url: "https://cwe.mitre.org/data/definitions/502.html"
+    enabled: true
+
+  # ─── Hardcoded Secrets ────────────────────────────────────────────────────
+
+  - id: HARDCODED_PASSWORD
+    name: "Hardcoded Password"
+    severity: CRITICAL
+    languages: [python, javascript, typescript, java, go, ruby, php]
+    pattern: "(password|passwd|pwd)\\s*=\\s*['\"][^'\"]{4,}['\"]"
+    case_insensitive: true
+    description: "A hardcoded password was found. This is a critical security risk if the code is ever shared or leaked."
+    remediation: "Move credentials to environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)."
+    cwe: "CWE-798"
+    cwe_url: "https://cwe.mitre.org/data/definitions/798.html"
+    enabled: true
+
+  - id: HARDCODED_API_KEY
+    name: "Hardcoded API Key or Secret"
+    severity: CRITICAL
+    languages: [python, javascript, typescript, java, go, ruby, php, yaml, env]
+    pattern: "(api_key|api_secret|secret_key|access_token|auth_token)\\s*[=:]\\s*['\"]?[A-Za-z0-9+/]{16,}['\"]?"
+    case_insensitive: true
+    description: "A hardcoded API key or secret token was found in source code."
+    remediation: "Store secrets in environment variables (.env) or a secrets manager. Add .env to .gitignore."
+    cwe: "CWE-798"
+    cwe_url: "https://cwe.mitre.org/data/definitions/798.html"
+    enabled: true
+
+  - id: HARDCODED_AWS_KEY
+    name: "Hardcoded AWS Access Key"
+    severity: CRITICAL
+    languages: [python, javascript, typescript, yaml, env, shell]
+    pattern: "AKIA[0-9A-Z]{16}"
+    case_insensitive: false
+    description: "An AWS access key ID was found. This can allow unauthorized access to AWS resources."
+    remediation: "Revoke the key immediately and use IAM roles or environment variables instead."
+    cwe: "CWE-798"
+    cwe_url: "https://cwe.mitre.org/data/definitions/798.html"
+    enabled: true
+
+  - id: PRIVATE_KEY_IN_CODE
+    name: "Private Key Material in Source"
+    severity: CRITICAL
+    languages: [python, javascript, typescript, java, go, ruby, php, yaml]
+    pattern: "-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----"
+    case_insensitive: false
+    description: "A private key was found embedded in source code."
+    remediation: "Remove the key immediately. Rotate it and store it in a secrets manager or as an environment variable."
+    cwe: "CWE-321"
+    cwe_url: "https://cwe.mitre.org/data/definitions/321.html"
+    enabled: true
+
+  # ─── SQL Injection ────────────────────────────────────────────────────────
+
+  - id: SQL_INJECTION_FORMAT
+    name: "Potential SQL Injection (string formatting)"
+    severity: HIGH
+    languages: [python]
+    pattern: "(execute|cursor\\.execute)\\s*\\(\\s*[f'\"].*%(s|d)|f\".*SELECT|f\".*INSERT|f\".*UPDATE|f\".*DELETE"
+    case_insensitive: true
+    description: "SQL query appears to be constructed using string formatting, which can lead to SQL injection."
+    remediation: "Use parameterized queries: cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))"
+    cwe: "CWE-89"
+    cwe_url: "https://cwe.mitre.org/data/definitions/89.html"
+    enabled: true
+
+  - id: SQL_INJECTION_CONCAT
+    name: "Potential SQL Injection (string concatenation)"
+    severity: HIGH
+    languages: [python, javascript, typescript, java, php]
+    pattern: "(SELECT|INSERT|UPDATE|DELETE|DROP|UNION).*\\+.*['\"]|['\"].*\\+.*(SELECT|INSERT|UPDATE|DELETE)"
+    case_insensitive: true
+    description: "SQL query appears to be built via string concatenation."
+    remediation: "Use an ORM or parameterized queries. Never build SQL queries from user input directly."
+    cwe: "CWE-89"
+    cwe_url: "https://cwe.mitre.org/data/definitions/89.html"
+    enabled: true
+
+  # ─── Weak Cryptography ────────────────────────────────────────────────────
+
+  - id: WEAK_HASH_MD5
+    name: "Use of Weak Hash Algorithm (MD5)"
+    severity: MEDIUM
+    languages: [python, javascript, typescript, java, php, ruby]
+    pattern: "md5\\s*\\(|hashlib\\.md5|createHash\\(['\"]md5['\"]\\)|MessageDigest\\.getInstance\\(['\"]MD5['\"]\\)"
+    case_insensitive: true
+    description: "MD5 is cryptographically broken and should not be used for security purposes."
+    remediation: "Use SHA-256 or SHA-3 for hashing. For passwords, use bcrypt, scrypt, or Argon2."
+    cwe: "CWE-327"
+    cwe_url: "https://cwe.mitre.org/data/definitions/327.html"
+    enabled: true
+
+  - id: WEAK_HASH_SHA1
+    name: "Use of Weak Hash Algorithm (SHA-1)"
+    severity: MEDIUM
+    languages: [python, javascript, typescript, java, php, ruby]
+    pattern: "sha1\\s*\\(|hashlib\\.sha1|createHash\\(['\"]sha1['\"]\\)|MessageDigest\\.getInstance\\(['\"]SHA-1['\"]\\)"
+    case_insensitive: true
+    description: "SHA-1 is deprecated for security use due to known collision vulnerabilities."
+    remediation: "Migrate to SHA-256 or stronger. For passwords, use a proper KDF like bcrypt or Argon2."
+    cwe: "CWE-327"
+    cwe_url: "https://cwe.mitre.org/data/definitions/327.html"
+    enabled: true
+
+  - id: WEAK_RANDOM
+    name: "Use of Insecure Random (for security context)"
+    severity: MEDIUM
+    languages: [python]
+    pattern: "random\\.(random|randint|choice|randrange|shuffle)\\s*\\("
+    case_insensitive: false
+    description: "Python's random module is not cryptographically secure. Using it for tokens, keys, or passwords is dangerous."
+    remediation: "Use the secrets module: secrets.token_hex(), secrets.choice(), etc."
+    cwe: "CWE-338"
+    cwe_url: "https://cwe.mitre.org/data/definitions/338.html"
+    enabled: true
+
+  # ─── Path Traversal ───────────────────────────────────────────────────────
+
+  - id: PATH_TRAVERSAL
+    name: "Potential Path Traversal"
+    severity: HIGH
+    languages: [python, javascript, typescript, php]
+    pattern: "(\\.\\./|\\.\\.\\\\)"
+    case_insensitive: false
+    description: "A path traversal pattern (../) was found, which can allow reading files outside the intended directory."
+    remediation: "Use os.path.realpath() and validate that the resolved path starts with the expected base directory."
+    cwe: "CWE-22"
+    cwe_url: "https://cwe.mitre.org/data/definitions/22.html"
+    enabled: true
+
+  # ─── Command Injection ────────────────────────────────────────────────────
+
+  - id: SHELL_INJECTION_SUBPROCESS
+    name: "Potential Command Injection (subprocess with shell=True)"
+    severity: HIGH
+    languages: [python]
+    pattern: "subprocess\\.(run|call|Popen|check_output|check_call)\\s*\\([^)]*shell\\s*=\\s*True"
+    case_insensitive: false
+    description: "Using shell=True with subprocess and user-controlled input can lead to command injection."
+    remediation: "Pass commands as a list instead: subprocess.run(['ls', path]). Avoid shell=True with any user input."
+    cwe: "CWE-78"
+    cwe_url: "https://cwe.mitre.org/data/definitions/78.html"
+    enabled: true
+
+  - id: OS_SYSTEM_CALL
+    name: "Use of os.system()"
+    severity: MEDIUM
+    languages: [python]
+    pattern: "os\\.system\\s*\\("
+    case_insensitive: false
+    description: "os.system() passes commands directly to the shell and is vulnerable to injection."
+    remediation: "Replace with subprocess.run(cmd_list, check=True) for safer process execution."
+    cwe: "CWE-78"
+    cwe_url: "https://cwe.mitre.org/data/definitions/78.html"
+    enabled: true
+
+  # ─── SSL/TLS ──────────────────────────────────────────────────────────────
+
+  - id: SSL_VERIFY_DISABLED
+    name: "SSL Certificate Verification Disabled"
+    severity: HIGH
+    languages: [python, javascript, typescript]
+    pattern: "verify\\s*=\\s*False|rejectUnauthorized\\s*:\\s*false|ssl\\._create_unverified_context"
+    case_insensitive: true
+    description: "SSL certificate verification is disabled, making the connection vulnerable to MITM attacks."
+    remediation: "Always verify SSL certificates. Remove verify=False and ensure proper CA bundles are configured."
+    cwe: "CWE-295"
+    cwe_url: "https://cwe.mitre.org/data/definitions/295.html"
+    enabled: true
+
+  # ─── Debug / Info Leakage ─────────────────────────────────────────────────
+
+  - id: DEBUG_MODE_ENABLED
+    name: "Debug Mode Enabled in Production Code"
+    severity: MEDIUM
+    languages: [python, javascript, typescript]
+    pattern: "debug\\s*=\\s*True|DEBUG\\s*=\\s*True|app\\.run\\(.*debug\\s*=\\s*True"
+    case_insensitive: false
+    description: "Debug mode exposes stack traces, environment variables, and interactive consoles to users."
+    remediation: "Set DEBUG = False in production. Use environment variables: DEBUG = os.getenv('DEBUG', 'False') == 'True'"
+    cwe: "CWE-215"
+    cwe_url: "https://cwe.mitre.org/data/definitions/215.html"
+    enabled: true
+
+  - id: PRINT_SENSITIVE_DATA
+    name: "Potential Logging of Sensitive Data"
+    severity: LOW
+    languages: [python]
+    pattern: "print\\s*\\(.*?(password|token|secret|key|credential)"
+    case_insensitive: true
+    description: "Sensitive data may be printed to stdout or logs."
+    remediation: "Never log credentials or tokens. Use redaction in logging middleware."
+    cwe: "CWE-532"
+    cwe_url: "https://cwe.mitre.org/data/definitions/532.html"
+    enabled: true
+
+  # ─── XML / XXE ────────────────────────────────────────────────────────────
+
+  - id: XXE_LXML
+    name: "Potential XXE in lxml (resolve_entities enabled)"
+    severity: HIGH
+    languages: [python]
+    pattern: "etree\\.XMLParser\\s*\\(.*resolve_entities\\s*=\\s*True"
+    case_insensitive: false
+    description: "Enabling resolve_entities in lxml can allow XML External Entity (XXE) injection attacks."
+    remediation: "Use etree.XMLParser(resolve_entities=False, no_network=True) when parsing untrusted XML."
+    cwe: "CWE-611"
+    cwe_url: "https://cwe.mitre.org/data/definitions/611.html"
+    enabled: true
+
+  # ─── Terraform / IaC ──────────────────────────────────────────────────────
+
+  - id: TF_PUBLIC_S3_BUCKET
+    name: "Terraform: Publicly Accessible S3 Bucket"
+    severity: HIGH
+    languages: [terraform]
+    pattern: "acl\\s*=\\s*['\"]public-read"
+    case_insensitive: true
+    description: "An S3 bucket is configured with public-read ACL, potentially exposing sensitive data."
+    remediation: "Set acl = 'private' and use bucket policies for controlled access."
+    cwe: "CWE-284"
+    cwe_url: "https://cwe.mitre.org/data/definitions/284.html"
+    enabled: true
+
+  # ─── Dependency Vulnerabilities ───────────────────────────────────────────
+
+  - id: VULNERABLE_REQUESTS_VERSION
+    name: "Outdated requests library"
+    severity: HIGH
+    languages: [python]
+    pattern: "requests==2\\.(0|1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25)\\."
+    case_insensitive: false
+    description: "Older versions of requests have known SSL and redirect vulnerabilities."
+    remediation: "Upgrade to requests>=2.31.0"
+    cwe: "CWE-1035"
+    cwe_url: "https://cwe.mitre.org/data/definitions/1035.html"
+    enabled: true
+
+  - id: VULNERABLE_FLASK_VERSION
+    name: "Outdated Flask version"
+    severity: HIGH
+    languages: [python]
+    pattern: "Flask==(0\\.|1\\.0|1\\.1)"
+    case_insensitive: false
+    description: "Older Flask versions have known security vulnerabilities."
+    remediation: "Upgrade to Flask>=2.3.0"
+    cwe: "CWE-1035"
+    cwe_url: "https://cwe.mitre.org/data/definitions/1035.html"
+    enabled: true
+
+  # ─── Insecure Cryptography ────────────────────────────────────────────────
+
+  - id: HARDCODED_IV
+    name: "Hardcoded Initialization Vector (IV)"
+    severity: HIGH
+    languages: [python, javascript, typescript]
+    pattern: "iv\\s*=\\s*['\"][0-9a-fA-F]{16,}['\"]"
+    case_insensitive: false
+    description: "A hardcoded IV makes encrypted data predictable and vulnerable to attacks."
+    remediation: "Generate a random IV for each encryption operation using os.urandom(16)."
+    cwe: "CWE-329"
+    cwe_url: "https://cwe.mitre.org/data/definitions/329.html"
+    enabled: true
+
+  - id: WEAK_DES_CIPHER
+    name: "Use of DES or 3DES cipher"
+    severity: HIGH
+    languages: [python, java, javascript]
+    pattern: "DES\\s*\\(|3DES\\s*\\(|TripleDES|Cipher\\.getInstance\\(['\"]DES"
+    case_insensitive: false
+    description: "DES and 3DES are deprecated and vulnerable to brute force attacks."
+    remediation: "Use AES-256 with GCM mode instead."
+    cwe: "CWE-326"
+    cwe_url: "https://cwe.mitre.org/data/definitions/326.html"
+    enabled: true
+
+  - id: ECB_MODE
+    name: "Use of ECB cipher mode"
+    severity: HIGH
+    languages: [python, java, javascript]
+    pattern: "MODE_ECB|ECB\\s*mode|/ECB/"
+    case_insensitive: false
+    description: "ECB mode encrypts identical blocks identically, leaking data patterns."
+    remediation: "Use AES with GCM or CBC mode with a random IV."
+    cwe: "CWE-327"
+    cwe_url: "https://cwe.mitre.org/data/definitions/327.html"
+    enabled: true
+
+  - id: WEAK_KEY_SIZE
+    name: "Weak RSA/DSA key size"
+    severity: MEDIUM
+    languages: [python, java]
+    pattern: "key_size\\s*=\\s*(512|1024)|generate_private_key.*key_size=(512|1024)"
+    case_insensitive: false
+    description: "RSA/DSA keys under 2048 bits are considered weak and breakable."
+    remediation: "Use a minimum key size of 2048 bits, preferably 4096 bits."
+    cwe: "CWE-326"
+    cwe_url: "https://cwe.mitre.org/data/definitions/326.html"
+    enabled: true
+
+  # ─── Web Security ─────────────────────────────────────────────────────────
+
+  - id: XSS_FLASK_MARKUP
+    name: "Potential XSS via Flask Markup()"
+    severity: HIGH
+    languages: [python]
+    pattern: "Markup\\s*\\(.*request\\.|Markup\\s*\\(.*input"
+    case_insensitive: false
+    description: "Passing user input to Flask's Markup() bypasses HTML escaping and enables XSS."
+    remediation: "Never wrap user input in Markup(). Let Jinja2 auto-escape handle it."
+    cwe: "CWE-79"
+    cwe_url: "https://cwe.mitre.org/data/definitions/79.html"
+    enabled: true
+
+  - id: DJANGO_CSRF_EXEMPT
+    name: "Django CSRF protection disabled"
+    severity: HIGH
+    languages: [python]
+    pattern: "@csrf_exempt"
+    case_insensitive: false
+    description: "Disabling CSRF protection exposes endpoints to cross-site request forgery attacks."
+    remediation: "Remove @csrf_exempt. Use Django's built-in CSRF middleware on all POST endpoints."
+    cwe: "CWE-352"
+    cwe_url: "https://cwe.mitre.org/data/definitions/352.html"
+    enabled: true
+
+  - id: OPEN_REDIRECT
+    name: "Potential Open Redirect"
+    severity: MEDIUM
+    languages: [python, javascript, typescript]
+    pattern: "redirect\\s*\\(.*request\\.(args|params|GET|POST)|HttpResponseRedirect\\s*\\(.*request"
+    case_insensitive: false
+    description: "Redirecting to a user-supplied URL can enable phishing attacks."
+    remediation: "Validate redirect URLs against an allowlist of trusted domains."
+    cwe: "CWE-601"
+    cwe_url: "https://cwe.mitre.org/data/definitions/601.html"
+    enabled: true
+
+  - id: FLASK_SEND_FILE_PATH
+    name: "Flask send_file with user input"
+    severity: HIGH
+    languages: [python]
+    pattern: "send_file\\s*\\(.*request\\.(args|form|values)"
+    case_insensitive: false
+    description: "Passing user input to send_file() can allow attackers to read arbitrary files."
+    remediation: "Validate file paths against an allowlist. Never pass raw user input to send_file()."
+    cwe: "CWE-22"
+    cwe_url: "https://cwe.mitre.org/data/definitions/22.html"
+    enabled: true
+
+  # ─── Authentication & Session ─────────────────────────────────────────────
+
+  - id: JWT_NONE_ALGORITHM
+    name: "JWT none algorithm accepted"
+    severity: CRITICAL
+    languages: [python, javascript, typescript]
+    pattern: "algorithms?\\s*=\\s*\\[?['\"]none['\"]|verify\\s*=\\s*False.*jwt|jwt.*verify\\s*=\\s*False"
+    case_insensitive: true
+    description: "Accepting the 'none' algorithm in JWT allows forging tokens without a signature."
+    remediation: "Always specify a strong algorithm like HS256 or RS256. Never accept 'none'."
+    cwe: "CWE-347"
+    cwe_url: "https://cwe.mitre.org/data/definitions/347.html"
+    enabled: true
+
+  - id: WEAK_SESSION_SECRET
+    name: "Weak or hardcoded session secret"
+    severity: CRITICAL
+    languages: [python, javascript]
+    pattern: "SECRET_KEY\\s*=\\s*['\"][^'\"]{1,20}['\"]|secret_key\\s*=\\s*['\"][^'\"]{1,20}['\"]"
+    case_insensitive: false
+    description: "A short or hardcoded secret key makes session tokens predictable and forgeable."
+    remediation: "Use a long random secret: os.urandom(32). Store it in an environment variable."
+    cwe: "CWE-798"
+    cwe_url: "https://cwe.mitre.org/data/definitions/798.html"
+    enabled: true
+
+  - id: INSECURE_COOKIE
+    name: "Cookie missing Secure or HttpOnly flag"
+    severity: MEDIUM
+    languages: [python, javascript]
+    pattern: "set_cookie\\s*\\([^)]*\\)|response\\.cookie\\s*\\([^)]*\\)"
+    case_insensitive: false
+    description: "Cookies without Secure/HttpOnly flags can be stolen via XSS or network sniffing."
+    remediation: "Always set secure=True and httponly=True on sensitive cookies."
+    cwe: "CWE-614"
+    cwe_url: "https://cwe.mitre.org/data/definitions/614.html"
+    enabled: true
+
+  - id: TIMING_ATTACK_COMPARISON
+    name: "Potential timing attack in string comparison"
+    severity: MEDIUM
+    languages: [python]
+    pattern: "==\\s*password|password\\s*==|==\\s*token|token\\s*=="
+    case_insensitive: false
+    description: "Using == to compare secrets is vulnerable to timing attacks."
+    remediation: "Use hmac.compare_digest() or secrets.compare_digest() for constant-time comparison."
+    cwe: "CWE-208"
+    cwe_url: "https://cwe.mitre.org/data/definitions/208.html"
+    enabled: true
+
+  # ─── File & Input Handling ────────────────────────────────────────────────
+
+  - id: YAML_LOAD_UNSAFE
+    name: "Unsafe yaml.load() usage"
+    severity: HIGH
+    languages: [python]
+    pattern: "yaml\\.load\\s*\\([^,)]+\\)"
+    case_insensitive: false
+    description: "yaml.load() with untrusted input can execute arbitrary Python code."
+    remediation: "Replace yaml.load() with yaml.safe_load() at all times."
+    cwe: "CWE-502"
+    cwe_url: "https://cwe.mitre.org/data/definitions/502.html"
+    enabled: true
+
+  - id: INSECURE_TEMP_FILE
+    name: "Insecure temporary file creation"
+    severity: MEDIUM
+    languages: [python]
+    pattern: "tempfile\\.mktemp\\s*\\("
+    case_insensitive: false
+    description: "tempfile.mktemp() creates predictable filenames vulnerable to symlink attacks."
+    remediation: "Use tempfile.mkstemp() or tempfile.TemporaryFile() for safe temp file creation."
+    cwe: "CWE-377"
+    cwe_url: "https://cwe.mitre.org/data/definitions/377.html"
+    enabled: true
+
+  - id: UNVALIDATED_FILE_UPLOAD
+    name: "Unvalidated file upload"
+    severity: HIGH
+    languages: [python]
+    pattern: "request\\.files\\[|request\\.files\\.get\\("
+    case_insensitive: false
+    description: "Accepting file uploads without validation can allow malicious file execution."
+    remediation: "Validate file extension, MIME type, and size. Store uploads outside the web root."
+    cwe: "CWE-434"
+    cwe_url: "https://cwe.mitre.org/data/definitions/434.html"
+    enabled: true
+
+  - id: XML_MINIDOM_PARSE
+    name: "Unsafe XML parsing with minidom"
+    severity: MEDIUM
+    languages: [python]
+    pattern: "minidom\\.parseString|minidom\\.parse"
+    case_insensitive: false
+    description: "Python's minidom is vulnerable to XML bomb (billion laughs) attacks."
+    remediation: "Use the defusedxml library for safe XML parsing."
+    cwe: "CWE-776"
+    cwe_url: "https://cwe.mitre.org/data/definitions/776.html"
+    enabled: true
+
+  # ─── Cloud & Infrastructure ───────────────────────────────────────────────
+
+  - id: AWS_SECRET_KEY
+    name: "Hardcoded AWS Secret Access Key"
+    severity: CRITICAL
+    languages: [python, javascript, typescript, yaml, env, shell]
+    pattern: "aws_secret_access_key\\s*=\\s*['\"][A-Za-z0-9+/]{40}['\"]"
+    case_insensitive: true
+    description: "A hardcoded AWS secret key can give attackers full access to your AWS account."
+    remediation: "Use IAM roles or environment variables. Rotate the key immediately if exposed."
+    cwe: "CWE-798"
+    cwe_url: "https://cwe.mitre.org/data/definitions/798.html"
+    enabled: true
+
+  - id: TF_UNENCRYPTED_S3
+    name: "Terraform: S3 bucket without encryption"
+    severity: MEDIUM
+    languages: [terraform]
+    pattern: "resource\\s+['\"]aws_s3_bucket['\"]"
+    case_insensitive: false
+    description: "S3 bucket may be missing server-side encryption configuration."
+    remediation: "Add an aws_s3_bucket_server_side_encryption_configuration resource."
+    cwe: "CWE-311"
+    cwe_url: "https://cwe.mitre.org/data/definitions/311.html"
+    enabled: true
+
+  - id: TF_OPEN_SECURITY_GROUP
+    name: "Terraform: Security group open to the world"
+    severity: HIGH
+    languages: [terraform]
+    pattern: "cidr_blocks\\s*=\\s*\\[?\\s*['\"]0\\.0\\.0\\.0/0['\"]"
+    case_insensitive: false
+    description: "A security group allowing all inbound traffic exposes your infrastructure."
+    remediation: "Restrict cidr_blocks to known IP ranges only."
+    cwe: "CWE-284"
+    cwe_url: "https://cwe.mitre.org/data/definitions/284.html"
+    enabled: true
+
+  # ─── Logging & Error Handling ─────────────────────────────────────────────
+
+  - id: STACK_TRACE_EXPOSED
+    name: "Stack trace exposed to user"
+    severity: MEDIUM
+    languages: [python]
+    pattern: "traceback\\.print_exc\\s*\\(|traceback\\.format_exc\\s*\\(.*return|print_exception"
+    case_insensitive: false
+    description: "Exposing stack traces to users leaks internal file paths and logic."
+    remediation: "Log stack traces server-side only. Return a generic error message to the user."
+    cwe: "CWE-209"
+    cwe_url: "https://cwe.mitre.org/data/definitions/209.html"
+    enabled: true
+
+  - id: SENSITIVE_DATA_IN_URL
+    name: "Sensitive data in URL parameters"
+    severity: MEDIUM
+    languages: [python, javascript, typescript]
+    pattern: "\\?(password|token|api_key|secret|key)=|params=\\{.*['\"]?(password|token|secret)"
+    case_insensitive: true
+    description: "Sensitive data in URLs is logged by servers, proxies, and browser history."
+    remediation: "Pass sensitive data in request headers or the request body, never in URLs."
+    cwe: "CWE-598"
+    cwe_url: "https://cwe.mitre.org/data/definitions/598.html"
+    enabled: true
